@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Skill 文件写入器
+Skill 檔案寫入器
 
-负责将生成的 memories.md、persona.md 写入到正确的目录结构，
+负责将生成的 memories.md、persona.md、style_rules.md 寫入到正确的目錄结构，
 并生成 meta.json 和完整的 SKILL.md。
 
 用法：
-    python3 skill_writer.py --action create --slug xiaomei --meta meta.json \
-        --memories memories_content.md --persona persona_content.md \
+    python3 skill_writer.py --action create --slug mika --meta meta.json \
+        --memories memories_content.md --persona persona_content.md --style-rules style_rules.md \
         --base-dir ./exes
 
     python3 skill_writer.py --action update --slug xiaomei \
@@ -30,7 +30,7 @@ from typing import Optional
 
 SKILL_MD_TEMPLATE = """\
 ---
-name: ex_{slug}
+name: member_{slug}
 description: {name}，{identity}
 user-invocable: true
 ---
@@ -41,34 +41,41 @@ user-invocable: true
 
 ---
 
-## PART A：共同记忆
+## PART A：群組背景與成員記憶
 
 {memories_content}
 
 ---
 
-## PART B：人物性格
+## PART B：成員 Persona
 
 {persona_content}
 
 ---
 
-## 运行规则
+## PART C：安全風格規則
 
-接收到任何消息时：
+{style_rules_content}
 
-1. **先由 PART B 判断**：你会不会回这条消息？用什么心情和态度回？
-2. **再由 PART A 提供记忆**：相关的共同记忆、日常细节、重要时刻
-3. **输出时保持 PART B 的表达风格**：你说话的方式、用词习惯、emoji 偏好
+---
 
-**PART B 的 Layer 0 规则永远优先，任何情况下不得违背。**
+## 執行規則
+
+接收到任何訊息時：
+
+1. **先由 PART B 判断**：目標群友的語氣、節奏、幽默方式和互動邊界。
+2. **再由 PART A 提供背景**：群組背景、成員關係和互動模式。
+3. **最后遵守 PART C**：預設不輸出舊原句、不翻舊事、不冒充真人。
+
+**PART B 的 Layer 0 規則永远优先，任何情况下不得违背。**
+只有使用者明確要求原句、逐字、引用或 exact wording 時，才可以短引用歷史原句。
 """
 
 
 def slugify(name: str) -> str:
     """
-    将姓名转为 slug。
-    优先尝试 pypinyin（如已安装），否则 fallback 到简单处理。
+    将姓名转為 slug。
+    优先尝试 pypinyin（如已安裝），否則 fallback 到简单處理。
     """
     try:
         from pypinyin import lazy_pinyin
@@ -86,36 +93,32 @@ def slugify(name: str) -> str:
 
     import re
     slug = re.sub(r"_+", "_", slug).strip("_")
-    return slug if slug else "ex"
+    return slug if slug else "member"
+
+
+def load_json_file(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
 def build_identity_string(meta: dict) -> str:
     """从 meta 构建身份描述字符串"""
-    profile = meta.get("profile", {})
     parts = []
 
-    duration = profile.get("duration", "")
-    how_met = profile.get("how_met", "")
-    time_since = profile.get("time_since_breakup", "")
-    occupation = profile.get("occupation", "")
+    name = str(meta.get("name", "")).strip()
+    group_name = str(meta.get("group_name", "")).strip()
+    role = str(meta.get("role", "group member")).strip() or "group member"
+    style_tags = meta.get("style_tags", [])
 
-    if duration:
-        parts.append(f"在一起 {duration}")
-    if how_met:
-        parts.append(how_met)
-    if time_since:
-        parts.append(f"分手 {time_since}")
+    if name:
+        parts.append(name)
+    if group_name:
+        parts.append(f"WhatsApp 群組 {group_name}")
+    if role:
+        parts.append(role)
+    if style_tags:
+        parts.append("風格：" + "、".join(map(str, style_tags)))
 
-    identity = "，".join(parts) if parts else "前任"
-
-    if occupation:
-        identity += f"，{occupation}"
-
-    mbti = profile.get("mbti", "")
-    if mbti:
-        identity += f"，MBTI {mbti}"
-
-    return identity
+    return "，".join(parts) if parts else "WhatsApp group persona"
 
 
 def create_skill(
@@ -124,25 +127,29 @@ def create_skill(
     meta: dict,
     memories_content: str,
     persona_content: str,
+    style_rules_content: str = "",
 ) -> Path:
-    """创建新的前任 Skill 目录结构"""
+    """建立新的 WhatsApp 群友 Persona Skill 目錄结构"""
 
     skill_dir = base_dir / slug
     skill_dir.mkdir(parents=True, exist_ok=True)
 
-    # 创建子目录
+    # 建立子目錄
     (skill_dir / "versions").mkdir(exist_ok=True)
     (skill_dir / "knowledge" / "chats").mkdir(parents=True, exist_ok=True)
     (skill_dir / "knowledge" / "photos").mkdir(parents=True, exist_ok=True)
     (skill_dir / "knowledge" / "social").mkdir(parents=True, exist_ok=True)
 
-    # 写入 memories.md
+    # 寫入 memories.md
     (skill_dir / "memories.md").write_text(memories_content, encoding="utf-8")
 
-    # 写入 persona.md
+    # 寫入 persona.md
     (skill_dir / "persona.md").write_text(persona_content, encoding="utf-8")
 
-    # 生成并写入 SKILL.md
+    # 寫入 style_rules.md
+    (skill_dir / "style_rules.md").write_text(style_rules_content, encoding="utf-8")
+
+    # 生成并寫入 SKILL.md
     name = meta.get("name", slug)
     identity = build_identity_string(meta)
 
@@ -152,26 +159,27 @@ def create_skill(
         identity=identity,
         memories_content=memories_content,
         persona_content=persona_content,
+        style_rules_content=style_rules_content,
     )
     (skill_dir / "SKILL.md").write_text(skill_md, encoding="utf-8")
 
-    # 写入 memories-only skill
+    # 寫入 memories-only skill
     memories_only = (
-        f"---\nname: ex_{slug}_memories\n"
-        f"description: {name} 的共同记忆（仅 Memories，无 Persona）\n"
+        f"---\nname: member_{slug}_memories\n"
+        f"description: {name} 的群組背景與成員記憶（仅 Memories，无 Persona）\n"
         f"user-invocable: true\n---\n\n{memories_content}\n"
     )
     (skill_dir / "memories_skill.md").write_text(memories_only, encoding="utf-8")
 
-    # 写入 persona-only skill
+    # 寫入 persona-only skill
     persona_only = (
-        f"---\nname: ex_{slug}_persona\n"
-        f"description: {name} 的人物性格（仅 Persona，无共同记忆）\n"
+        f"---\nname: member_{slug}_persona\n"
+        f"description: {name} 的群友 Persona（仅 Persona，无 Memories）\n"
         f"user-invocable: true\n---\n\n{persona_content}\n"
     )
     (skill_dir / "persona_skill.md").write_text(persona_only, encoding="utf-8")
 
-    # 写入 meta.json
+    # 寫入 meta.json
     now = datetime.now(timezone.utc).isoformat()
     meta["slug"] = slug
     meta.setdefault("created_at", now)
@@ -193,10 +201,10 @@ def update_skill(
     persona_patch: Optional[str] = None,
     correction: Optional[dict] = None,
 ) -> str:
-    """更新现有 Skill，先存档当前版本，再写入更新"""
+    """更新現有 Skill，先存档当前版本，再寫入更新"""
 
     meta_path = skill_dir / "meta.json"
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta = load_json_file(meta_path)
 
     current_version = meta.get("version", "v1")
     try:
@@ -208,7 +216,7 @@ def update_skill(
     # 存档当前版本
     version_dir = skill_dir / "versions" / current_version
     version_dir.mkdir(parents=True, exist_ok=True)
-    for fname in ("SKILL.md", "memories.md", "persona.md"):
+    for fname in ("SKILL.md", "memories.md", "persona.md", "style_rules.md"):
         src = skill_dir / fname
         if src.exists():
             shutil.copy2(src, version_dir / fname)
@@ -226,20 +234,20 @@ def update_skill(
         if correction:
             correction_line = (
                 f"\n- [{correction.get('scene', '通用')}] "
-                f"不应该 {correction['wrong']}，应该 {correction['correct']}"
+                f"不應該 {correction['wrong']}，應該 {correction['correct']}"
             )
-            target = "## Correction 记录"
+            target = "## Correction 記錄"
             if target in current_persona:
                 insert_pos = current_persona.index(target) + len(target)
                 rest = current_persona[insert_pos:]
-                skip = "\n\n（暂无记录）"
+                skip = "\n\n（暫無記錄）"
                 if rest.startswith(skip):
                     rest = rest[len(skip):]
                 new_persona = current_persona[:insert_pos] + correction_line + rest
             else:
                 new_persona = (
                     current_persona
-                    + f"\n\n## Correction 记录\n{correction_line}\n"
+                    + f"\n\n## Correction 記錄\n{correction_line}\n"
                 )
             meta["corrections_count"] = meta.get("corrections_count", 0) + 1
         else:
@@ -250,6 +258,8 @@ def update_skill(
     # 重新生成 SKILL.md
     memories_content = (skill_dir / "memories.md").read_text(encoding="utf-8")
     persona_content = (skill_dir / "persona.md").read_text(encoding="utf-8")
+    style_rules_path = skill_dir / "style_rules.md"
+    style_rules_content = style_rules_path.read_text(encoding="utf-8") if style_rules_path.exists() else ""
     name = meta.get("name", skill_dir.name)
     identity = build_identity_string(meta)
 
@@ -259,6 +269,7 @@ def update_skill(
         identity=identity,
         memories_content=memories_content,
         persona_content=persona_content,
+        style_rules_content=style_rules_content,
     )
     (skill_dir / "SKILL.md").write_text(skill_md, encoding="utf-8")
 
@@ -271,7 +282,7 @@ def update_skill(
 
 
 def list_exes(base_dir: Path) -> list:
-    """列出所有已创建的前任 Skill"""
+    """列出所有已建立的 WhatsApp 群友 Persona Skill"""
     exes = []
 
     if not base_dir.exists():
@@ -285,7 +296,7 @@ def list_exes(base_dir: Path) -> list:
             continue
 
         try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta = load_json_file(meta_path)
         except Exception:
             continue
 
@@ -302,19 +313,20 @@ def list_exes(base_dir: Path) -> list:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Skill 文件写入器")
+    parser = argparse.ArgumentParser(description="Skill 檔案寫入器")
     parser.add_argument("--action", required=True, choices=["create", "update", "list"])
-    parser.add_argument("--slug", help="前任 slug（用于目录名）")
-    parser.add_argument("--name", help="前任昵称")
-    parser.add_argument("--meta", help="meta.json 文件路径")
-    parser.add_argument("--memories", help="memories.md 内容文件路径")
-    parser.add_argument("--persona", help="persona.md 内容文件路径")
-    parser.add_argument("--memories-patch", help="memories.md 增量更新内容文件路径")
-    parser.add_argument("--persona-patch", help="persona.md 增量更新内容文件路径")
+    parser.add_argument("--slug", help="群友 slug（用於目錄名）")
+    parser.add_argument("--name", help="群友暱稱")
+    parser.add_argument("--meta", help="meta.json 檔案路径")
+    parser.add_argument("--memories", help="memories.md 內容檔案路径")
+    parser.add_argument("--persona", help="persona.md 內容檔案路径")
+    parser.add_argument("--style-rules", help="style_rules.md 內容檔案路径")
+    parser.add_argument("--memories-patch", help="memories.md 增量更新內容檔案路径")
+    parser.add_argument("--persona-patch", help="persona.md 增量更新內容檔案路径")
     parser.add_argument(
         "--base-dir",
         default="./exes",
-        help="前任 Skill 根目录（默认：./exes）",
+        help="群友 Persona Skill 根目錄（預設：./exes）",
     )
 
     args = parser.parse_args()
@@ -323,13 +335,13 @@ def main() -> None:
     if args.action == "list":
         exes = list_exes(base_dir)
         if not exes:
-            print("暂无已创建的前任 Skill")
+            print("暫無已建立的群友 Persona Skill")
         else:
-            print(f"已创建 {len(exes)} 个前任 Skill：\n")
+            print(f"已建立 {len(exes)} 個群友 Persona Skill：\n")
             for e in exes:
                 updated = e["updated_at"][:10] if e["updated_at"] else "未知"
                 print(f"  [{e['slug']}]  {e['name']} — {e['identity']}")
-                print(f"    版本: {e['version']}  纠正次数: {e['corrections_count']}  更新: {updated}")
+                print(f"    版本: {e['version']}  糾正次数: {e['corrections_count']}  更新: {updated}")
                 print()
 
     elif args.action == "create":
@@ -339,11 +351,11 @@ def main() -> None:
 
         meta: dict = {}
         if args.meta:
-            meta = json.loads(Path(args.meta).read_text(encoding="utf-8"))
+            meta = load_json_file(Path(args.meta))
         if args.name:
             meta["name"] = args.name
 
-        slug = args.slug or slugify(meta.get("name", "ex"))
+        slug = args.slug or slugify(meta.get("name", "member"))
 
         memories_content = ""
         if args.memories:
@@ -353,9 +365,13 @@ def main() -> None:
         if args.persona:
             persona_content = Path(args.persona).read_text(encoding="utf-8")
 
-        skill_dir = create_skill(base_dir, slug, meta, memories_content, persona_content)
-        print(f"✅ Skill 已创建：{skill_dir}")
-        print(f"   触发词：/{slug}")
+        style_rules_content = ""
+        if args.style_rules:
+            style_rules_content = Path(args.style_rules).read_text(encoding="utf-8")
+
+        skill_dir = create_skill(base_dir, slug, meta, memories_content, persona_content, style_rules_content)
+        print(f"✅ Skill 已建立：{skill_dir}")
+        print(f"   觸發词：/{slug}")
 
     elif args.action == "update":
         if not args.slug:
@@ -364,7 +380,7 @@ def main() -> None:
 
         skill_dir = base_dir / args.slug
         if not skill_dir.exists():
-            print(f"错误：找不到 Skill 目录 {skill_dir}", file=sys.stderr)
+            print(f"错误：找不到 Skill 目錄 {skill_dir}", file=sys.stderr)
             sys.exit(1)
 
         memories_patch = Path(args.memories_patch).read_text(encoding="utf-8") if args.memories_patch else None

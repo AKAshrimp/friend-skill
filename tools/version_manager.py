@@ -2,7 +2,7 @@
 """
 版本管理器
 
-负责 Skill 文件的版本存档和回滚。
+负责 Skill 檔案的版本存档和回滚。
 
 用法：
     python version_manager.py --action list --slug xiaomei --base-dir ./exes
@@ -22,7 +22,7 @@ MAX_VERSIONS = 10  # 最多保留的版本数
 
 
 def list_versions(skill_dir: Path) -> list:
-    """列出所有历史版本"""
+    """列出所有歷史版本"""
     versions_dir = skill_dir / "versions"
     if not versions_dir.exists():
         return []
@@ -67,7 +67,7 @@ def rollback(skill_dir: Path, target_version: str) -> bool:
             if src.exists():
                 shutil.copy2(src, backup_dir / fname)
 
-    # 从目标版本恢复文件
+    # 从目標版本恢复檔案
     restored_files = []
     for fname in ("SKILL.md", "memories.md", "persona.md"):
         src = version_dir / fname
@@ -83,12 +83,12 @@ def rollback(skill_dir: Path, target_version: str) -> bool:
         meta["rollback_from"] = current_version
         meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"已回滚到 {target_version}，恢复文件：{', '.join(restored_files)}")
+    print(f"已回滚到 {target_version}，恢复檔案：{', '.join(restored_files)}")
     return True
 
 
 def cleanup_old_versions(skill_dir: Path, max_versions: int = MAX_VERSIONS):
-    """清理超出限制的旧版本"""
+    """清理超出限制的舊版本"""
     versions_dir = skill_dir / "versions"
     if not versions_dir.exists():
         return
@@ -102,18 +102,18 @@ def cleanup_old_versions(skill_dir: Path, max_versions: int = MAX_VERSIONS):
 
     for old_dir in to_delete:
         shutil.rmtree(old_dir)
-        print(f"已清理旧版本：{old_dir.name}")
+        print(f"已清理舊版本：{old_dir.name}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Skill 版本管理器")
     parser.add_argument("--action", required=True, choices=["list", "rollback", "cleanup"])
-    parser.add_argument("--slug", required=True, help="前任 slug")
-    parser.add_argument("--version", help="目标版本号（rollback 时使用）")
+    parser.add_argument("--slug", required=True, help="群友 Persona slug")
+    parser.add_argument("--version", help="目標版本號（rollback 時使用）")
     parser.add_argument(
         "--base-dir",
         default="./exes",
-        help="前任 Skill 根目录（默认：./exes）",
+        help="群友 Persona Skill 根目錄（預設：./exes）",
     )
 
     args = parser.parse_args()
@@ -121,17 +121,17 @@ def main():
     skill_dir = base_dir / args.slug
 
     if not skill_dir.exists():
-        print(f"错误：找不到 Skill 目录 {skill_dir}", file=sys.stderr)
+        print(f"错误：找不到 Skill 目錄 {skill_dir}", file=sys.stderr)
         sys.exit(1)
 
     if args.action == "list":
         versions = list_versions(skill_dir)
         if not versions:
-            print(f"{args.slug} 暂无历史版本")
+            print(f"{args.slug} 暫無歷史版本")
         else:
-            print(f"{args.slug} 的历史版本：\n")
+            print(f"{args.slug} 的歷史版本：\n")
             for v in versions:
-                print(f"  {v['version']}  存档时间: {v['archived_at']}  文件: {', '.join(v['files'])}")
+                print(f"  {v['version']}  存档時间: {v['archived_at']}  檔案: {', '.join(v['files'])}")
 
     elif args.action == "rollback":
         if not args.version:
