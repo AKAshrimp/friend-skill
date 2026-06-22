@@ -1,8 +1,11 @@
-# WhatsApp Group Persona Framework
+# 朋友 Skill
 
-把 WhatsApp 群聊匯出的 `.txt` 轉成可給 chatbot / RAG / agent 使用的「群友 Persona」框架。
+把溫暖的群友，變成冷冰冰的 skill。  
+靈感來自 ex skill，但這次不翻舊情，只翻群聊語氣。
 
-這不是 LoRA，也不是模型微調。它的目標是抽象出一位群友的說話節奏、語氣強弱、語言混用、幽默方式和互動模式，同時避免複製舊訊息、翻舊事或冒充真人。
+朋友 Skill 是一個 WhatsApp 群友 persona 框架，把群聊裡的短句、笑位、emoji、語氣和熟人感，蒸餾成 chatbot / RAG / agent 可用的安全 skill。
+
+這不是 LoRA，也不是模型微調。它抽象的是一位群友的說話節奏、語氣強弱、語言混用、幽默方式和互動模式，同時避免複製舊訊息、翻舊事或冒充真人。
 
 ## 核心特點
 
