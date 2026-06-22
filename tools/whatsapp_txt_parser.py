@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import argparse
 import re
+import io
 from pathlib import Path
 
 
 MESSAGE_RE = re.compile(
-    r"^(?P<timestamp>\d{1,2}/\d{1,2}/\d{2,4},\s+\d{1,2}:\d{2}(?:\s?[AP]M)?)\s+-\s+(?P<sender>[^:：]+)[:：]\s*(?P<text>.*)$",
+    r"^(?P<timestamp>\d{1,2}/\d{1,2}/\d{2,4}(?:,\s+|\s+)\d{1,2}:\d{2}(?:\s?[AP]M)?)\s+-\s+(?P<sender>[^:：]+)[:：]\s*(?P<text>.*)$",
     re.IGNORECASE,
 )
 
@@ -23,21 +24,23 @@ def parse_whatsapp_txt(path: str | Path) -> list[dict]:
     messages: list[dict] = []
     current: dict | None = None
 
-    for raw_line in Path(path).read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip("\ufeff\u200e")
-        match = MESSAGE_RE.match(line)
-        if match:
-            if current and _is_useful_text(current["text"]):
-                messages.append(current)
-            current = {
-                "timestamp": match.group("timestamp").strip(),
-                "sender": match.group("sender").strip(),
-                "text": match.group("text").strip(),
-            }
-            continue
+    path = Path(path)
+    with io.open(str(path), mode="r", encoding="utf-8", errors="replace") as fh:
+        for raw_line in fh:
+            line = raw_line.strip("\ufeff\u200e\r\n")
+            match = MESSAGE_RE.match(line)
+            if match:
+                if current and _is_useful_text(current["text"]):
+                    messages.append(current)
+                current = {
+                    "timestamp": match.group("timestamp").strip(),
+                    "sender": match.group("sender").strip(),
+                    "text": match.group("text").strip(),
+                }
+                continue
 
-        if current and line.strip():
-            current["text"] += "\n" + line.strip()
+            if current and line.strip():
+                current["text"] += "\n" + line.strip()
 
     if current and _is_useful_text(current["text"]):
         messages.append(current)

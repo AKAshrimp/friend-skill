@@ -2,6 +2,10 @@
 exes/*/
 !exes/example_xiaomei/
 
+# Raw WhatsApp exports and private source material
+*.txt
+!requirements.txt
+
 # Python
 __pycache__/
 *.pyc
